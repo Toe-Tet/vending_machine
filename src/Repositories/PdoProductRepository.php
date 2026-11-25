@@ -6,6 +6,8 @@ namespace App\Repositories;
 
 use App\Core\Database;
 use App\Models\Product;
+use App\Models\ProductSort;
+use App\Models\SortDirection;
 use RuntimeException;
 
 final readonly class PdoProductRepository implements ProductRepository
@@ -16,10 +18,24 @@ final readonly class PdoProductRepository implements ProductRepository
     {
     }
 
-    public function all(): array
+    public function count(): int
     {
+        return (int) $this->db->query('SELECT COUNT(*) FROM products WHERE archived_at IS NULL')->fetchColumn();
+    }
+
+    public function page(ProductSort $sort, SortDirection $dir, int $limit, int $offset): array
+    {
+        // Every interpolated piece is an enum-derived keyword or an int, never raw input.
+        $column = match ($sort) {
+            ProductSort::Name => 'name',
+            ProductSort::Price => 'price',
+            ProductSort::Quantity => 'quantity_available',
+        };
+        $direction = $dir === SortDirection::Desc ? 'DESC' : 'ASC';
+
         $rows = $this->db->query(
-            'SELECT ' . self::COLUMNS . ' FROM products WHERE archived_at IS NULL ORDER BY name, id',
+            'SELECT ' . self::COLUMNS . " FROM products WHERE archived_at IS NULL
+             ORDER BY {$column} {$direction}, id {$direction} LIMIT {$limit} OFFSET {$offset}",
         )->fetchAll();
 
         return array_map(Product::fromRow(...), $rows);

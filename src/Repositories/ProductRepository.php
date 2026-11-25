@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Models\Product;
+use App\Models\ProductSort;
+use App\Models\SortDirection;
 
 /**
  * Products for sale. Archived Products are invisible to every read: they are
@@ -12,8 +14,15 @@ use App\Models\Product;
  */
 interface ProductRepository
 {
-    /** @return list<Product> active Products ordered by name */
-    public function all(): array;
+    /** Number of active Products. */
+    public function count(): int;
+
+    /**
+     * One page of active Products, ordered by $sort then id (so ties keep a stable order).
+     *
+     * @return list<Product>
+     */
+    public function page(ProductSort $sort, SortDirection $dir, int $limit, int $offset): array;
 
     public function find(int $id): ?Product;
 

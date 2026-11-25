@@ -37,5 +37,6 @@ $auth ??= null;
 <main class="container">
     <?= $content ?>
 </main>
+<script src="/js/app.js" defer></script>
 </body>
 </html>

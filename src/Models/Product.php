@@ -30,6 +30,12 @@ final readonly class Product
         );
     }
 
+    /** The Unit Price with exactly three decimals, e.g. "2.500" (ADR-0002: never rounded). */
+    public function displayPrice(): string
+    {
+        return bcadd($this->price, '0', 3);
+    }
+
     public function isSoldOut(): bool
     {
         return $this->quantityAvailable === 0;
