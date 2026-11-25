@@ -2,7 +2,7 @@
 
 A plain-PHP web app and JSON API for a vending machine. Guests browse Products, Users and Admins buy them, and Admins manage the catalogue. Every Purchase is recorded with the Unit Price at that moment.
 
-**Live preview: <https://vending-machine.onrender.com>** (sign in with the [demo accounts](#demo-accounts))
+**Live preview: <https://vending-machine-ma06.onrender.com>** (sign in with the [demo accounts](#demo-accounts))
 
 > The preview runs on Render's free tier, which puts the service to sleep after about 15 minutes without traffic. The first request after that takes **about 30 seconds** while it wakes up. After that it responds normally.
 
@@ -154,7 +154,7 @@ Every error has the same shape:
 Pick a target. The examples work the same locally and against the live site. Pulling the token out of the response uses `jq`; without it, copy the `token` value by hand.
 
 ```sh
-BASE_URL=https://vending-machine.onrender.com   # or http://localhost:8080
+BASE_URL=https://vending-machine-ma06.onrender.com   # or http://localhost:8080
 
 login() {  # login <email> <password>: prints a token
   curl -s -X POST "$BASE_URL/api/auth/login" \
@@ -240,7 +240,7 @@ The live site is one Docker web service on Render's free tier. It connects to a 
 
    | Variable | Value |
    |---|---|
-   | `APP_URL` | the service URL, e.g. `https://vending-machine.onrender.com` (not read by the app yet, so any value works if the URL isn't known) |
+   | `APP_URL` | the service URL, e.g. `https://vending-machine-ma06.onrender.com` (not read by the app yet, so any value works if the URL isn't known) |
    | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | from Aiven |
    | `DB_SSL_CA` | `/etc/secrets/ca.pem` |
 

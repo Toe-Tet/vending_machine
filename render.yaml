@@ -15,7 +15,7 @@ services:
       - key: APP_ENV
         value: production
       - key: APP_URL
-        sync: false # e.g. https://vending-machine.onrender.com
+        sync: false # e.g. https://vending-machine-ma06.onrender.com
       - key: DB_HOST
         sync: false # Aiven service host
       - key: DB_PORT
