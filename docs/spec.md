@@ -43,7 +43,7 @@ No `.env.test` or `.env.production` files exist; no secrets are ever committed.
 | Error display | full details in browser | full details | generic error page; details to log (stderr) |
 | Session cookie `Secure` | only on HTTPS | only on HTTPS | always |
 | `JWT_SECRET` | any non-empty | any non-empty | required, ≥ 32 chars, else app refuses to boot |
-| Database | `vending` (compose) | none | Aiven |
+| Database | `vending_machine` (compose) | none | Aiven |
 
 **Local dev:** `docker compose up` runs the app on `http://localhost:8080` and MySQL published on host port `3307` (avoids clashing with a Homebrew MySQL on 3306).
 

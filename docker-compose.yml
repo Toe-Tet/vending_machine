@@ -1,3 +1,9 @@
+# Local development: app on http://localhost:8080, MySQL on host port 3307.
+#
+# Credentials come from .env (see .env.example). MySQL applies MYSQL_* only the
+# first time the db-data volume is created; after changing DB_NAME/DB_USER/
+# DB_PASSWORD/DB_ROOT_PASSWORD, recreate it with `docker compose down -v`.
+# DB_USER must not be "root": the app gets its own user; root is for admin use.
 services:
   app:
     build: .
@@ -11,9 +17,9 @@ services:
       APP_URL: ${APP_URL:-http://localhost:8080}
       DB_HOST: db
       DB_PORT: "3306"
-      DB_NAME: ${DB_NAME:-vending}
-      DB_USER: ${DB_USER:-vending}
-      DB_PASSWORD: ${DB_PASSWORD:-vending}
+      DB_NAME: ${DB_NAME:-vending_machine}
+      DB_USER: ${DB_USER:-vending_user}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
       JWT_SECRET: ${JWT_SECRET:-local-dev-secret-change-me}
     depends_on:
       db:
@@ -24,15 +30,16 @@ services:
     ports:
       - "3307:3306"
     environment:
-      MYSQL_DATABASE: ${DB_NAME:-vending}
-      MYSQL_USER: ${DB_USER:-vending}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-vending}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-vending_machine}
+      MYSQL_USER: ${DB_USER:-vending_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-password}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password}
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
     volumes:
       - db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_ROOT_PASSWORD:-root}"]
+      # $$ defers expansion to the container, so this always matches the real root password.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 5s
       timeout: 5s
       retries: 20
