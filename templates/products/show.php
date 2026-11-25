@@ -11,11 +11,12 @@
         <dt>Quantity Available</dt>
         <dd><?= $product->isSoldOut() ? '<mark>Sold out</mark>' : e($product->quantityAvailable) ?></dd>
     </dl>
-    <?php if (isset($auth) && $auth->isAdmin()): ?>
-        <footer>
+    <footer>
+        <?php require __DIR__ . '/_buy.php'; ?>
+        <?php if (isset($auth) && $auth->isAdmin()): ?>
             <a href="/products/<?= e($product->id) ?>/edit" role="button" class="secondary">Edit</a>
             <?php require __DIR__ . '/_delete.php'; ?>
-        </footer>
-    <?php endif; ?>
+        <?php endif; ?>
+    </footer>
 </article>
 <p><a href="/products">Back to Products</a></p>

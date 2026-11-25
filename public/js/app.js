@@ -71,6 +71,56 @@
         });
     });
 
+    // Messages mirror src/Validation/PurchaseQuantity.php (and the stock message from
+    // InsufficientStockException); change them together.
+    function quantityMessage(input) {
+        if (input.validity.badInput) return 'Quantity must be a whole number.';
+        var value = input.value.trim();
+        if (value === '') return 'Enter a quantity.';
+        if (!/^-?\d+$/.test(value)) return 'Quantity must be a whole number.';
+        if (/^-/.test(value) || !/[1-9]/.test(value)) return 'Quantity must be at least 1.';
+        if (Number(value) > Number(input.max)) return 'Only ' + input.max + ' available.';
+        return '';
+    }
+
+    // Exact Purchase Total (ADR-0002): the Unit Price in thousandths is an integer, so no float
+    // rounding. 999999999 thousandths × 1,000,000 units stays below 2^53.
+    function purchaseTotal(unitPrice, quantity) {
+        var parts = unitPrice.split('.');
+        var thousandths = Number(parts[0]) * 1000 + Number(((parts[1] || '') + '000').slice(0, 3));
+        var total = String(thousandths * quantity);
+        while (total.length < 4) total = '0' + total;
+        return total.slice(0, -3) + '.' + total.slice(-3);
+    }
+
+    document.querySelectorAll('form.purchase-form').forEach(function (form) {
+        var input = form.elements.quantity;
+        var output = form.querySelector('[data-purchase-total]');
+        var slot = form.querySelector('[data-error-for="quantity"]');
+        if (!input || input.disabled) return;
+        form.noValidate = true;
+
+        function update(showErrors) {
+            var message = quantityMessage(input);
+            output.textContent = message ? '—' : purchaseTotal(form.getAttribute('data-unit-price'), Number(input.value));
+            if (showErrors || input.getAttribute('aria-invalid') === 'true') {
+                slot.textContent = message;
+                input.setAttribute('aria-invalid', message ? 'true' : 'false');
+            }
+            return message === '';
+        }
+
+        input.addEventListener('input', function () { update(false); });
+        input.addEventListener('blur', function () { update(true); });
+        form.addEventListener('submit', function (event) {
+            if (!update(true)) {
+                event.preventDefault();
+                input.focus();
+            }
+        });
+        update(false);
+    });
+
     document.querySelectorAll('form[data-confirm]').forEach(function (form) {
         form.addEventListener('submit', function (event) {
             if (!window.confirm(form.getAttribute('data-confirm'))) event.preventDefault();

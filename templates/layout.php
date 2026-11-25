@@ -3,7 +3,9 @@
 /** @var string|null $title */
 /** @var App\Auth\Auth|null $auth */
 /** @var string|null $csrfToken */
+/** @var string|null $flash one-time message, e.g. after a Purchase */
 $auth ??= null;
+$flash ??= null;
 ?>
 <!doctype html>
 <html lang="en">
@@ -35,6 +37,9 @@ $auth ??= null;
     </nav>
 </header>
 <main class="container">
+    <?php if ($flash !== null): ?>
+        <article role="status" class="flash"><?= e($flash) ?></article>
+    <?php endif; ?>
     <?= $content ?>
 </main>
 <script src="/js/app.js" defer></script>

@@ -8,11 +8,14 @@ use App\Core\Config;
 use App\Core\Container;
 use App\Core\Database;
 use App\Core\Env;
+use App\Core\Flash;
 use App\Core\View;
 use App\Repositories\PdoProductRepository;
 use App\Repositories\PdoUserRepository;
 use App\Repositories\ProductRepository;
 use App\Repositories\UserRepository;
+use App\Services\PdoPurchaseService;
+use App\Services\PurchaseService;
 
 /*
  * Shared boot for the web front controller and CLI scripts. Throws
@@ -31,12 +34,14 @@ $config = Config::fromEnvironment();
 $container = new Container();
 $container->set(Config::class, $config);
 $container->set(Database::class, fn (Container $c) => Database::fromConfig($c->get(Config::class)));
-// Every template sees who is signed in and the CSRF token for its forms.
+// Every template sees who is signed in, the CSRF token for its forms, and any one-time flash message.
 $container->set(View::class, fn (Container $c) => new View(__DIR__ . '/templates', static fn () => [
     'auth' => $c->get(Auth::class),
     'csrfToken' => $c->get(Csrf::class)->token(),
+    'flash' => $c->get(Flash::class)->pull(),
 ]));
 $container->bind(ProductRepository::class, PdoProductRepository::class);
 $container->bind(UserRepository::class, PdoUserRepository::class);
+$container->bind(PurchaseService::class, PdoPurchaseService::class);
 
 return $container;

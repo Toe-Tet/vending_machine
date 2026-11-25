@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Auth\Auth;
 use App\Auth\Guard;
+use App\Core\Flash;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Route;
@@ -12,14 +14,21 @@ use App\Core\View;
 use App\Models\Product;
 use App\Models\ProductListQuery;
 use App\Repositories\ProductRepository;
+use App\Services\InsufficientStockException;
+use App\Services\ProductNotFoundException;
+use App\Services\PurchaseService;
 use App\Validation\ProductValidator;
+use App\Validation\PurchaseQuantity;
 
 final readonly class ProductsController
 {
     public function __construct(
         private ProductRepository $products,
+        private PurchaseService $purchases,
         private ProductValidator $validator,
         private Guard $guard,
+        private Auth $auth,
+        private Flash $flash,
         private View $view,
     ) {
     }
@@ -126,6 +135,68 @@ final readonly class ProductsController
         }
 
         return $this->products->archive($id) ? Response::redirect('/products') : $this->notFound();
+    }
+
+    #[Route('GET', '/products/{id}/purchase')]
+    public function purchaseForm(int $id): Response
+    {
+        if ($denied = $this->guard->signedIn()) {
+            return $denied;
+        }
+
+        $product = $this->products->find($id);
+        if ($product === null) {
+            return $this->notFound();
+        }
+
+        return $this->purchaseView($product);
+    }
+
+    #[Route('POST', '/products/{id}/purchase')]
+    public function purchase(Request $request, int $id): Response
+    {
+        if ($denied = $this->guard->signedIn()) {
+            return $denied;
+        }
+
+        $product = $this->products->find($id);
+        if ($product === null) {
+            return $this->notFound();
+        }
+
+        $submitted = $request->input('quantity');
+        $old = ['quantity' => PurchaseQuantity::normalise($submitted)];
+        // Sold Out wins over a bad quantity: any attempt is a 409 (spec §4). The service re-checks under the lock.
+        if ($product->isSoldOut()) {
+            return $this->purchaseView($product, $old, (new InsufficientStockException(0))->getMessage(), 409);
+        }
+        if ($error = PurchaseQuantity::error($submitted)) {
+            return $this->purchaseView($product, $old, $error, 422);
+        }
+
+        // Past PHP_INT_MAX the cast saturates, which is still more than any stock.
+        $quantity = (int) $old['quantity'];
+        try {
+            $purchase = $this->purchases->purchase((int) $this->auth->id(), $id, $quantity);
+        } catch (ProductNotFoundException) {
+            return $this->notFound(); // archived since the find() above
+        } catch (InsufficientStockException $e) {
+            return $this->purchaseView($product->withQuantityAvailable($e->available), $old, $e->getMessage(), 409);
+        }
+        $this->flash->put("Bought {$purchase->quantity} × {$product->name}. Purchase Total: {$purchase->total} USD.");
+
+        return Response::redirect("/products/{$id}/purchase");
+    }
+
+    /** @param array<string, string> $old */
+    private function purchaseView(Product $product, array $old = [], ?string $error = null, int $status = 200): Response
+    {
+        return $this->view->response('products/purchase', [
+            'title' => "Buy {$product->name}",
+            'product' => $product,
+            'old' => $old,
+            'error' => $error,
+        ], $status);
     }
 
     /**

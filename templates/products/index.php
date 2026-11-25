@@ -37,9 +37,7 @@ $header = static function (ProductSort $sort, string $label) use ($query): strin
                 <?= $header(ProductSort::Name, 'Name') ?>
                 <?= $header(ProductSort::Price, 'Price (USD)') ?>
                 <?= $header(ProductSort::Quantity, 'Quantity Available') ?>
-                <?php if ($isAdmin): ?>
-                    <th scope="col">Actions</th>
-                <?php endif; ?>
+                <th scope="col">Actions</th>
             </tr>
             </thead>
             <tbody>
@@ -48,12 +46,13 @@ $header = static function (ProductSort $sort, string $label) use ($query): strin
                     <td><a href="/products/<?= e($product->id) ?>"><?= e($product->name) ?></a></td>
                     <td><?= e($product->displayPrice()) ?></td>
                     <td><?= $product->isSoldOut() ? '<mark>Sold out</mark>' : e($product->quantityAvailable) ?></td>
-                    <?php if ($isAdmin): ?>
-                        <td>
+                    <td>
+                        <?php require __DIR__ . '/_buy.php'; ?>
+                        <?php if ($isAdmin): ?>
                             <a href="/products/<?= e($product->id) ?>/edit">Edit</a>
                             <?php require __DIR__ . '/_delete.php'; ?>
-                        </td>
-                    <?php endif; ?>
+                        <?php endif; ?>
+                    </td>
                 </tr>
             <?php endforeach; ?>
             </tbody>

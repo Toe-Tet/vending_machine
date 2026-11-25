@@ -9,15 +9,21 @@ use App\Auth\Csrf;
 use App\Auth\Guard;
 use App\Controllers\ProductsController;
 use App\Core\ArraySession;
+use App\Core\Flash;
 use App\Core\Request;
 use App\Core\View;
 use App\Models\Product;
 use App\Models\ProductSort;
+use App\Models\Purchase;
 use App\Models\Role;
 use App\Models\SortDirection;
 use App\Models\User;
 use App\Repositories\ProductRepository;
+use App\Services\InsufficientStockException;
+use App\Services\ProductNotFoundException;
+use App\Services\PurchaseService;
 use App\Validation\ProductValidator;
+use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\MockObject\Stub;
@@ -26,22 +32,39 @@ use PHPUnit\Framework\TestCase;
 final class ProductsControllerTest extends TestCase
 {
     private Auth $auth;
+    private Flash $flash;
     private ProductRepository&Stub $products;
+    private PurchaseService&Stub $purchases;
 
     protected function setUp(): void
     {
         $session = new ArraySession();
         $this->auth = new Auth($session, new Csrf($session));
+        $this->flash = new Flash($session);
         $this->products = $this->createStub(ProductRepository::class);
+        $this->purchases = $this->createStub(PurchaseService::class);
     }
 
-    /** The controller under test, wired to whatever $this->products is by now. */
+    /** The controller under test, wired to whatever $this->products and $this->purchases are by now. */
     private function controller(): ProductsController
     {
         $auth = $this->auth;
-        $view = new View(dirname(__DIR__, 3) . '/templates', static fn () => ['auth' => $auth, 'csrfToken' => 'test-token']);
+        $flash = $this->flash;
+        $view = new View(
+            dirname(__DIR__, 3) . '/templates',
+            static fn () => ['auth' => $auth, 'csrfToken' => 'test-token', 'flash' => $flash->pull()],
+        );
 
-        return new ProductsController($this->products, new ProductValidator(), new Guard($auth, $view), $view);
+        return new ProductsController($this->products, $this->purchases, new ProductValidator(), new Guard($auth, $view), $auth, $this->flash, $view);
+    }
+
+    /** Swaps the stub purchase service for a mock, for tests that assert whether a Purchase is attempted. */
+    private function mockPurchases(): PurchaseService&MockObject
+    {
+        $mock = $this->createMock(PurchaseService::class);
+        $this->purchases = $mock;
+
+        return $mock;
     }
 
     /** Swaps the stub repository for a mock, for tests that assert which calls are made. */
@@ -172,6 +195,30 @@ final class ProductsControllerTest extends TestCase
         self::assertStringContainsString('action="/products/3"', $body);
         self::assertSame(3, substr_count($body, 'value="DELETE"'));
         self::assertStringContainsString('href="/products/create"', $body);
+    }
+
+    public function test_rows_link_to_buy_except_sold_out_products(): void
+    {
+        $this->products->method('count')->willReturn(3);
+        $this->products->method('page')->willReturn(self::seeded());
+
+        $body = $this->controller()->index(self::get('/products'))->body;
+
+        self::assertStringContainsString('href="/products/1/purchase"', $body);
+        self::assertStringContainsString('href="/products/2/purchase"', $body);
+        self::assertStringNotContainsString('href="/products/3/purchase"', $body);
+    }
+
+    public function test_the_product_page_links_to_buy_unless_sold_out(): void
+    {
+        $this->products->method('find')->willReturnMap([
+            [2, new Product(2, 'Pepsi', '6.885', 10)],
+            [3, new Product(3, 'Water', '0.500', 0)],
+        ]);
+        $controller = $this->controller();
+
+        self::assertStringContainsString('href="/products/2/purchase"', $controller->show(2)->body);
+        self::assertStringNotContainsString('href="/products/3/purchase"', $controller->show(3)->body);
     }
 
     public function test_anyone_can_view_a_product(): void
@@ -431,6 +478,155 @@ final class ProductsControllerTest extends TestCase
             self::assertSame($status, $response->status, $action);
             self::assertSame($location, $response->headers['Location'] ?? null, $action);
         }
+    }
+
+    public function test_a_user_buys_two_pepsi_and_sees_the_purchase_total(): void
+    {
+        $this->signInAs(Role::User);
+        $this->products->method('find')->willReturnMap([[2, new Product(2, 'Pepsi', '6.885', 10)]]);
+        $this->mockPurchases()->expects(self::once())->method('purchase')
+            ->with(1, 2, 2)
+            ->willReturn(new Purchase(7, 1, 2, 2, '6.885', '13.770', new DateTimeImmutable()));
+        $controller = $this->controller();
+
+        $response = $controller->purchase(self::post('/products/2/purchase', ['quantity' => '2']), 2);
+
+        self::assertSame(302, $response->status);
+        self::assertSame('/products/2/purchase', $response->headers['Location']);
+        self::assertStringContainsString('Purchase Total: 13.770', $controller->purchaseForm(2)->body);
+    }
+
+    /** @return iterable<string, array{mixed, string}> */
+    public static function invalidQuantities(): iterable
+    {
+        yield 'missing' => ['', 'Enter a quantity.'];
+        yield 'zero' => ['0', 'Quantity must be at least 1.'];
+        yield 'negative' => ['-1', 'Quantity must be at least 1.'];
+        yield 'fractional' => ['1.5', 'Quantity must be a whole number.'];
+        yield 'with a plus sign' => ['+2', 'Quantity must be a whole number.'];
+        yield 'non-numeric' => ['two', 'Quantity must be a whole number.'];
+        yield 'exponent' => ['1e1', 'Quantity must be a whole number.'];
+        yield 'sent as an array' => [['2'], 'Enter a quantity.'];
+    }
+
+    #[DataProvider('invalidQuantities')]
+    public function test_an_invalid_quantity_is_rejected_and_nothing_is_bought(mixed $quantity, string $message): void
+    {
+        $this->signInAs(Role::User);
+        $this->products->method('find')->willReturn(new Product(2, 'Pepsi', '6.885', 10));
+        $this->mockPurchases()->expects(self::never())->method('purchase');
+
+        $response = $this->controller()->purchase(self::post('/products/2/purchase', ['quantity' => $quantity]), 2);
+
+        self::assertSame(422, $response->status);
+        self::assertStringContainsString('<small id="quantity-error" data-error-for="quantity">' . e($message) . '</small>', $response->body);
+        self::assertMatchesRegularExpression('/id="quantity"[^>]*aria-invalid="true"/s', $response->body);
+    }
+
+    /** @return iterable<string, array{string, int, string}> */
+    public static function overStock(): iterable
+    {
+        yield 'more than available' => ['11', 10, 'Only 10 available.'];
+        yield 'stock fell since the form loaded' => ['3', 2, 'Only 2 available.'];
+        yield 'huge quantity' => ['99999999999999999999', 10, 'Only 10 available.'];
+        yield 'sold out' => ['1', 0, 'Sold out.'];
+    }
+
+    /** The service decides under the row lock; the page then shows the stock it found, not the stale 50. */
+    #[DataProvider('overStock')]
+    public function test_buying_more_than_is_available_is_a_conflict_and_shows_the_current_stock(string $quantity, int $available, string $message): void
+    {
+        $this->signInAs(Role::User);
+        $this->products->method('find')->willReturn(new Product(2, 'Pepsi', '6.885', 50));
+        $this->purchases->method('purchase')->willThrowException(new InsufficientStockException($available));
+
+        $response = $this->controller()->purchase(self::post('/products/2/purchase', ['quantity' => $quantity]), 2);
+
+        self::assertSame(409, $response->status);
+        self::assertStringContainsString('data-error-for="quantity">' . e($message) . '</small>', $response->body);
+        self::assertStringContainsString('value="' . e($quantity) . '"', $response->body);
+        self::assertStringNotContainsString('<dd>50</dd>', $response->body, 'shows the stale stock');
+    }
+
+    /** Spec §4: any attempt on a Sold Out Product is a 409, whatever quantity was sent. */
+    public function test_buying_a_sold_out_product_is_a_conflict_even_with_a_bad_quantity(): void
+    {
+        $this->signInAs(Role::User);
+        $this->products->method('find')->willReturn(new Product(3, 'Water', '0.500', 0));
+        $this->mockPurchases()->expects(self::never())->method('purchase');
+
+        $response = $this->controller()->purchase(self::post('/products/3/purchase', ['quantity' => '0']), 3);
+
+        self::assertSame(409, $response->status);
+        self::assertStringContainsString('data-error-for="quantity">Sold out.</small>', $response->body);
+    }
+
+    public function test_a_sold_out_product_shows_buy_disabled(): void
+    {
+        $this->signInAs(Role::User);
+        $this->products->method('find')->willReturn(new Product(3, 'Water', '0.500', 0));
+
+        $body = $this->controller()->purchaseForm(3)->body;
+
+        self::assertStringContainsString('Sold out', $body);
+        self::assertMatchesRegularExpression('/<button type="submit"[^>]*disabled/', $body);
+    }
+
+    public function test_the_purchase_form_shows_the_product_and_limits_the_quantity(): void
+    {
+        $this->signInAs(Role::User);
+        $this->products->method('find')->willReturnMap([[2, new Product(2, 'Pepsi', '6.885', 10)]]);
+
+        $response = $this->controller()->purchaseForm(2);
+
+        self::assertSame(200, $response->status);
+        self::assertStringContainsString('Pepsi', $response->body);
+        self::assertStringContainsString('data-unit-price="6.885"', $response->body);
+        self::assertStringContainsString('<dd>10</dd>', $response->body);
+        self::assertMatchesRegularExpression('/id="quantity"[^>]*min="1" max="10"/s', $response->body);
+        self::assertStringContainsString('action="/products/2/purchase"', $response->body);
+    }
+
+    public function test_buying_a_missing_or_archived_product_is_not_found(): void
+    {
+        $this->signInAs(Role::User);
+        $this->products->method('find')->willReturn(null);
+        $this->mockPurchases()->expects(self::never())->method('purchase');
+        $controller = $this->controller();
+
+        self::assertSame(404, $controller->purchaseForm(9)->status);
+        self::assertSame(404, $controller->purchase(self::post('/products/9/purchase', ['quantity' => '1']), 9)->status);
+    }
+
+    public function test_a_product_archived_while_being_bought_is_not_found(): void
+    {
+        $this->signInAs(Role::User);
+        $this->products->method('find')->willReturn(new Product(2, 'Pepsi', '6.885', 10));
+        $this->purchases->method('purchase')->willThrowException(new ProductNotFoundException(2));
+
+        self::assertSame(404, $this->controller()->purchase(self::post('/products/2/purchase', ['quantity' => '1']), 2)->status);
+    }
+
+    public function test_guests_are_sent_to_sign_in_before_buying(): void
+    {
+        $this->products->method('find')->willReturn(new Product(2, 'Pepsi', '6.885', 10));
+        $this->mockPurchases()->expects(self::never())->method('purchase');
+        $controller = $this->controller();
+
+        foreach ([$controller->purchaseForm(2), $controller->purchase(self::post('/products/2/purchase', ['quantity' => '1']), 2)] as $response) {
+            self::assertSame(302, $response->status);
+            self::assertSame('/login', $response->headers['Location']);
+        }
+    }
+
+    public function test_admins_can_buy_too(): void
+    {
+        $this->signInAs(Role::Admin);
+        $this->products->method('find')->willReturn(new Product(1, 'Coke', '3.990', 10));
+        $this->mockPurchases()->expects(self::once())->method('purchase')->with(1, 1, 3)
+            ->willReturn(new Purchase(8, 1, 1, 3, '3.990', '11.970', new DateTimeImmutable()));
+
+        self::assertSame(302, $this->controller()->purchase(self::post('/products/1/purchase', ['quantity' => '3']), 1)->status);
     }
 
     private static function get(string $path, array $query = []): Request

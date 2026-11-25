@@ -36,6 +36,11 @@ final readonly class Product
         return bcadd($this->price, '0', 3);
     }
 
+    public function withQuantityAvailable(int $quantityAvailable): self
+    {
+        return new self($this->id, $this->name, $this->price, $quantityAvailable, $this->archivedAt);
+    }
+
     public function isSoldOut(): bool
     {
         return $this->quantityAvailable === 0;
