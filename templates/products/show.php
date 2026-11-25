@@ -3,15 +3,30 @@
 /** @var App\Auth\Auth|null $auth */
 /** @var string|null $csrfToken */
 ?>
-<article>
-    <header><h1><?= e($product->name) ?></h1></header>
-    <dl>
-        <dt>Unit Price (USD)</dt>
-        <dd><?= e($product->displayPrice()) ?></dd>
-        <dt>Quantity Available</dt>
-        <dd><?= $product->isSoldOut() ? '<mark>Sold out</mark>' : e($product->quantityAvailable) ?></dd>
+<p class="back-link"><a href="/products">← Back to Products</a></p>
+
+<article class="product-card">
+    <header>
+        <h1><?= e($product->name) ?></h1>
+        <?php if ($product->isSoldOut()): ?>
+            <span class="badge badge-out">Sold out</span>
+        <?php else: ?>
+            <span class="badge">In stock</span>
+        <?php endif; ?>
+    </header>
+
+    <dl class="facts">
+        <div>
+            <dt>Unit Price (USD)</dt>
+            <dd class="price"><?= e($product->displayPrice()) ?></dd>
+        </div>
+        <div>
+            <dt>Quantity Available</dt>
+            <dd><?= e($product->quantityAvailable) ?></dd>
+        </div>
     </dl>
-    <footer>
+
+    <footer class="row-actions">
         <?php require __DIR__ . '/_buy.php'; ?>
         <?php if (isset($auth) && $auth->isAdmin()): ?>
             <a href="/products/<?= e($product->id) ?>/edit" role="button" class="secondary">Edit</a>
@@ -19,4 +34,3 @@
         <?php endif; ?>
     </footer>
 </article>
-<p><a href="/products">Back to Products</a></p>

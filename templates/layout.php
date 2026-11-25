@@ -14,6 +14,7 @@ $flash ??= null;
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e(isset($title) ? $title . ' · Vending Machine' : 'Vending Machine') ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.min.css">
+    <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
 <header class="container">
@@ -24,9 +25,9 @@ $flash ??= null;
             <?php if ($auth?->check()): ?>
                 <li><?= e($auth->name()) ?><?= $auth->isAdmin() ? ' <small>(Admin)</small>' : '' ?></li>
                 <li>
-                    <form method="post" action="/logout" style="margin: 0">
+                    <form method="post" action="/logout" class="inline-form">
                         <input type="hidden" name="_token" value="<?= e($csrfToken ?? '') ?>">
-                        <button type="submit" class="secondary outline" style="margin: 0">Sign out</button>
+                        <button type="submit" class="secondary outline btn-sm">Sign out</button>
                     </form>
                 </li>
             <?php else: ?>

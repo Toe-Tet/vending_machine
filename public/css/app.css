@@ -1,0 +1,142 @@
+/*
+ * Compact density on top of Pico CSS (loaded first in templates/layout.php).
+ * Pico grows the root font from 100% to 131.25% as the viewport widens; we pin it
+ * and roughly halve the spacing tokens so pages stay dense on wide screens.
+ * Chosen from the prototype on branch prototype/compact-products (variant A).
+ */
+:root {
+    --pico-font-size: 93.75%;
+    --pico-spacing: .625rem;
+    --pico-typography-spacing-vertical: .625rem;
+    --pico-block-spacing-vertical: .75rem;
+    --pico-block-spacing-horizontal: .875rem;
+    --pico-form-element-spacing-vertical: .375rem;
+    --pico-form-element-spacing-horizontal: .625rem;
+    --pico-nav-element-spacing-vertical: .5rem;
+    --pico-nav-link-spacing-vertical: .25rem;
+}
+
+/* Pico redefines --pico-font-size inside its breakpoints, so repeat it there. */
+@media (min-width: 576px)  { :root { --pico-font-size: 93.75%; } }
+@media (min-width: 768px)  { :root { --pico-font-size: 93.75%; } }
+@media (min-width: 1024px) { :root { --pico-font-size: 93.75%; } }
+@media (min-width: 1280px) { :root { --pico-font-size: 93.75%; } }
+@media (min-width: 1536px) { :root { --pico-font-size: 93.75%; } }
+
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.25rem; }
+
+/* Page title with its primary action on the same row. */
+.page-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-block: .75rem;
+}
+.page-head h1 { margin: 0; }
+
+/* Small buttons: table row actions, header controls, the page-head action. */
+.btn-sm,
+.page-head [role="button"],
+.row-actions [role="button"],
+.row-actions button {
+    width: auto;
+    margin: 0;
+    padding: .2rem .6rem;
+    font-size: .8125rem;
+}
+.page-head [role="button"] { padding: .3rem .75rem; font-size: .875rem; }
+
+table th,
+table td { padding: .4rem .6rem; }
+
+.row-actions {
+    display: flex;
+    align-items: center;
+    gap: .375rem;
+    white-space: nowrap;
+}
+.row-actions a:not([role]) { font-size: .875rem; }
+
+/* A form that sits inline with links and buttons (Delete, Sign out). */
+.inline-form { display: inline; margin: 0; }
+
+nav[aria-label="Pagination"] { font-size: .875rem; }
+
+/* Product view (templates/products/show.php). */
+/* Back link and card share one centred 32rem column. */
+.back-link,
+.product-card { max-width: 32rem; margin-inline: auto; }
+.back-link { margin-block: .75rem .5rem; font-size: .875rem; }
+.back-link a { text-decoration: none; }
+.product-card > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+.product-card > header h1 { margin: 0; font-size: 1.375rem; }
+
+.badge {
+    flex-shrink: 0;
+    padding: .1rem .55rem;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--pico-ins-color);
+    border: 1px solid currentColor;
+}
+.badge-out { color: var(--pico-del-color); }
+
+.facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .75rem;
+    margin: 0;
+}
+.facts dt {
+    font-size: .75rem;
+    font-weight: normal;
+    color: var(--pico-muted-color);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+.facts dd {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.facts dd.price { font-size: 1.5rem; }
+
+/* Sign in / Sign up: a narrow centred column instead of the full container width. */
+.auth-page {
+    max-width: 28rem;
+    margin: 1.5rem auto 0;
+}
+.auth-page h1 { font-size: 1.375rem; }
+.auth-page form button[type="submit"] { width: 100%; }
+.auth-page table { font-size: .8125rem; margin: 0; }
+
+/* Product list: a centred column, wide enough for the table. */
+.list-page {
+    max-width: 56rem;
+    margin-inline: auto;
+}
+
+/* Purchase and product form cards (same .product-card column as the product view). */
+.product-card .facts { margin-bottom: 1rem; }
+.product-card form { margin: 0; }
+.product-card .total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-block: .5rem;
+    border-top: 1px solid var(--pico-muted-border-color);
+    font-variant-numeric: tabular-nums;
+}
+.product-card .total strong { font-size: 1.25rem; }
+.product-card form > button[type="submit"] { width: 100%; margin: 0; }
+.form-actions { display: flex; gap: .5rem; margin-top: .25rem; }
+.form-actions > * { flex: 1; margin: 0; }

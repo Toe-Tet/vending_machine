@@ -17,8 +17,11 @@ $invalid = static fn (string $field): string => isset($errors[$field])
 $error = static fn (string $field): string => '<small id="' . $field . '-error" data-error-for="' . $field . '">'
     . e($errors[$field] ?? '') . '</small>';
 ?>
-<article>
-    <h1><?= $product === null ? 'New Product' : 'Edit ' . e($product->name) ?></h1>
+<?php $cancelUrl = $product === null ? '/products' : '/products/' . e($product->id); ?>
+<p class="back-link"><a href="<?= $cancelUrl ?>">← Back to <?= $product === null ? 'Products' : e($product->name) ?></a></p>
+
+<article class="product-card">
+    <header><h1><?= $product === null ? 'New Product' : 'Edit ' . e($product->name) ?></h1></header>
 
     <form method="post" action="<?= $product === null ? '/products' : '/products/' . e($product->id) ?>" class="product-form">
         <input type="hidden" name="_token" value="<?= e($csrfToken ?? '') ?>">
@@ -41,8 +44,9 @@ $error = static fn (string $field): string => '<small id="' . $field . '-error" 
                min="0" max="<?= ProductValidator::QUANTITY_MAX ?>" step="1" inputmode="numeric" required <?= $invalid('quantity_available') ?>>
         <?= $error('quantity_available') ?>
 
-        <button type="submit"><?= $product === null ? 'Create Product' : 'Save changes' ?></button>
+        <div class="form-actions">
+            <button type="submit"><?= $product === null ? 'Create Product' : 'Save changes' ?></button>
+            <a href="<?= $cancelUrl ?>" role="button" class="secondary outline">Cancel</a>
+        </div>
     </form>
-
-    <p><a href="<?= $product === null ? '/products' : '/products/' . e($product->id) ?>">Cancel</a></p>
 </article>

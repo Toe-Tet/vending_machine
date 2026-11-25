@@ -11,13 +11,25 @@
 $soldOut = $product->isSoldOut();
 $quantity = $old['quantity'] ?? '1';
 ?>
-<article>
-    <header><h1>Buy <?= e($product->name) ?></h1></header>
-    <dl>
-        <dt>Unit Price (USD)</dt>
-        <dd><?= e($product->displayPrice()) ?></dd>
-        <dt>Quantity Available</dt>
-        <dd><?= $soldOut ? '<mark>Sold out</mark>' : e($product->quantityAvailable) ?></dd>
+<p class="back-link"><a href="/products/<?= e($product->id) ?>">← Back to <?= e($product->name) ?></a></p>
+
+<article class="product-card">
+    <header>
+        <h1>Buy <?= e($product->name) ?></h1>
+        <?php if ($soldOut): ?>
+            <span class="badge badge-out">Sold out</span>
+        <?php endif; ?>
+    </header>
+
+    <dl class="facts">
+        <div>
+            <dt>Unit Price (USD)</dt>
+            <dd class="price"><?= e($product->displayPrice()) ?></dd>
+        </div>
+        <div>
+            <dt>Quantity Available</dt>
+            <dd><?= e($product->quantityAvailable) ?></dd>
+        </div>
     </dl>
 
     <form method="post" action="/products/<?= e($product->id) ?>/purchase" class="purchase-form"
@@ -31,9 +43,8 @@ $quantity = $old['quantity'] ?? '1';
                aria-describedby="quantity-error"<?= $error !== null ? ' aria-invalid="true"' : '' ?>>
         <small id="quantity-error" data-error-for="quantity"><?= e($error ?? '') ?></small>
 
-        <p>Purchase Total (USD): <strong data-purchase-total>—</strong></p>
+        <p class="total">Purchase Total (USD) <strong data-purchase-total>—</strong></p>
 
         <button type="submit" <?= $soldOut ? 'disabled' : '' ?>><?= $soldOut ? 'Sold out' : 'Buy' ?></button>
     </form>
 </article>
-<p><a href="/products/<?= e($product->id) ?>">Back to <?= e($product->name) ?></a></p>
