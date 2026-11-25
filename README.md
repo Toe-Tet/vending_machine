@@ -50,6 +50,10 @@ Every error has the same shape:
 | 409 | `sold_out` / `insufficient_stock` | Sold Out, or more requested than the Quantity Available |
 | 422 | `validation_failed` | Invalid fields; `fields` has a message for each |
 
+### Postman
+
+Import [docs/postman/vending-machine.postman_collection.json](docs/postman/vending-machine.postman_collection.json) and run it top to bottom (Collection Runner). It signs in as both demo accounts and saves the tokens. Then it creates its own Product, buys from it, triggers every error status and archives that Product, so the seeded data is left alone. Change the `baseUrl` collection variable to point it at another deployment.
+
 ### Walkthrough with curl
 
 Sign in as the demo User and keep the token:
