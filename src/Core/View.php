@@ -4,21 +4,29 @@ declare(strict_types=1);
 
 namespace App\Core;
 
+use Closure;
 use RuntimeException;
 
 /**
  * Renders plain-PHP templates from the templates directory. Templates escape
  * dynamic values with e(); the page is wrapped in a layout receiving $content.
+ * Optional $globals supplies data every template sees (e.g. who is signed in);
+ * it is called once per render, and the caller's data wins on a name clash.
  */
 final readonly class View
 {
-    public function __construct(private string $templatesDir)
+    /** @param (Closure(): array<string, mixed>)|null $globals */
+    public function __construct(private string $templatesDir, private ?Closure $globals = null)
     {
     }
 
     /** @param array<string, mixed> $data */
     public function render(string $template, array $data = [], ?string $layout = 'layout'): string
     {
+        if ($this->globals !== null) {
+            $data += ($this->globals)();
+        }
+
         $content = $this->renderFile($template, $data);
         if ($layout === null) {
             return $content;

@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Auth\Csrf;
 use App\Core\Config;
 use App\Core\ErrorHandler;
+use App\Core\NativeSession;
 use App\Core\Request;
 use App\Core\Router;
+use App\Core\Session;
 use App\Core\View;
 
 try {
@@ -30,17 +33,15 @@ try {
 
     $https = ($_SERVER['HTTPS'] ?? '') === 'on'
         || strtolower((string) $request->header('X-Forwarded-Proto')) === 'https';
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path' => '/',
-        'secure' => $config->secureCookies($https),
-        'httponly' => true,
-        'samesite' => 'Lax',
-    ]);
+    $container->set(Session::class, new NativeSession($config->secureCookies($https)));
 
-    $router = new Router($container);
-    $router->discover(dirname(__DIR__) . '/src/Controllers', 'App\\Controllers');
-    $response = $router->dispatch($request);
+    if ($container->get(Csrf::class)->rejects($request)) {
+        $response = $container->get(View::class)->response('errors/csrf', ['title' => 'Form expired'], 403);
+    } else {
+        $router = new Router($container);
+        $router->discover(dirname(__DIR__) . '/src/Controllers', 'App\\Controllers');
+        $response = $router->dispatch($request);
+    }
 } catch (Throwable $e) {
     $response = $errors->render($e);
 }

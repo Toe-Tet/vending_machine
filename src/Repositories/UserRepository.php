@@ -4,64 +4,25 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
-use App\Core\Database;
 use App\Models\Role;
 use App\Models\User;
-use RuntimeException;
 
-final readonly class UserRepository
+/** People who can sign in. Emails are unique (case-insensitively, by the column collation). */
+interface UserRepository
 {
-    private const string COLUMNS = 'id, name, email, password_hash, role';
+    public function find(int $id): ?User;
 
-    public function __construct(private Database $db)
-    {
-    }
+    public function findByEmail(string $email): ?User;
 
-    public function find(int $id): ?User
-    {
-        $row = $this->db->query('SELECT ' . self::COLUMNS . ' FROM users WHERE id = ?', [$id])->fetch();
+    /** Throws DuplicateEmailException when the email is already registered. */
+    public function create(string $name, string $email, string $passwordHash, Role $role = Role::User): User;
 
-        return $row === false ? null : User::fromRow($row);
-    }
+    /** @return bool false when the User doesn't exist */
+    public function update(int $id, string $name, string $email): bool;
 
-    public function findByEmail(string $email): ?User
-    {
-        $row = $this->db->query('SELECT ' . self::COLUMNS . ' FROM users WHERE email = ?', [$email])->fetch();
-
-        return $row === false ? null : User::fromRow($row);
-    }
-
-    public function create(string $name, string $email, string $passwordHash, Role $role = Role::User): User
-    {
-        $this->db->query(
-            'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
-            [$name, $email, $passwordHash, $role->value],
-        );
-
-        return $this->find((int) $this->db->pdo()->lastInsertId())
-            ?? throw new RuntimeException('Created user could not be read back');
-    }
-
-    public function update(int $id, string $name, string $email): bool
-    {
-        if ($this->find($id) === null) {
-            return false;
-        }
-
-        $this->db->query('UPDATE users SET name = ?, email = ? WHERE id = ?', [$name, $email, $id]);
-
-        return true;
-    }
-
-    public function updatePassword(int $id, string $passwordHash): bool
-    {
-        return $this->db->query('UPDATE users SET password_hash = ? WHERE id = ?', [$passwordHash, $id])
-            ->rowCount() === 1;
-    }
+    /** @return bool false when the User doesn't exist */
+    public function updatePassword(int $id, string $passwordHash): bool;
 
     /** Fails with a constraint violation if the User has Purchases (FK RESTRICT). */
-    public function delete(int $id): bool
-    {
-        return $this->db->query('DELETE FROM users WHERE id = ?', [$id])->rowCount() === 1;
-    }
+    public function delete(int $id): bool;
 }

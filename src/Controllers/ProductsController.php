@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Auth\Guard;
 use App\Core\Response;
 use App\Core\Route;
 use App\Core\View;
@@ -11,7 +12,7 @@ use App\Repositories\ProductRepository;
 
 final readonly class ProductsController
 {
-    public function __construct(private ProductRepository $products, private View $view)
+    public function __construct(private ProductRepository $products, private Guard $guard, private View $view)
     {
     }
 
@@ -22,5 +23,15 @@ final readonly class ProductsController
             'title' => 'Products',
             'products' => $this->products->all(),
         ]);
+    }
+
+    #[Route('GET', '/products/create')]
+    public function create(): Response
+    {
+        if ($denied = $this->guard->admin()) {
+            return $denied;
+        }
+
+        return $this->view->response('products/create', ['title' => 'New Product']);
     }
 }
