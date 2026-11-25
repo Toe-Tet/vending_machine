@@ -1,0 +1,44 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use App\Core\Database;
+use App\Core\Migrator;
+
+/*
+ * Applies pending migrations (schema + seed). Idempotent; run on every container start.
+ * Retries the connection briefly so it can start alongside the database.
+ */
+
+try {
+    /** @var App\Core\Container $container */
+    $container = require dirname(__DIR__) . '/bootstrap.php';
+} catch (Throwable $e) {
+    fwrite(STDERR, 'Boot failed: ' . $e->getMessage() . PHP_EOL);
+    exit(1);
+}
+
+$db = $container->get(Database::class);
+
+for ($attempt = 1; ; $attempt++) {
+    try {
+        $db->pdo();
+        break;
+    } catch (PDOException $e) {
+        if ($attempt >= 30) {
+            fwrite(STDERR, 'Could not connect to the database: ' . $e->getMessage() . PHP_EOL);
+            exit(1);
+        }
+        fwrite(STDERR, "Waiting for database ({$attempt})..." . PHP_EOL);
+        sleep(2);
+    }
+}
+
+try {
+    (new Migrator($db, dirname(__DIR__) . '/database/migrations'))
+        ->run(static fn (string $line) => fwrite(STDOUT, $line . PHP_EOL));
+} catch (Throwable $e) {
+    fwrite(STDERR, 'Migration failed: ' . $e->getMessage() . PHP_EOL);
+    exit(1);
+}

@@ -1,0 +1,8 @@
+.git
+.env
+vendor
+.phpunit.cache
+.claude
+.agents
+tests
+docs
