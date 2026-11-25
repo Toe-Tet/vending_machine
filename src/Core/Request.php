@@ -10,6 +10,7 @@ final readonly class Request
      * @param array<string, mixed> $query
      * @param array<string, mixed> $body
      * @param array<string, string> $headers lower-cased header names
+     * @param string $content the raw request body (the API reads JSON from it)
      */
     public function __construct(
         public string $method,
@@ -17,6 +18,7 @@ final readonly class Request
         public array $query = [],
         public array $body = [],
         public array $headers = [],
+        public string $content = '',
     ) {
     }
 
@@ -31,6 +33,10 @@ final readonly class Request
         if (isset($_SERVER['CONTENT_TYPE'])) {
             $headers['content-type'] = (string) $_SERVER['CONTENT_TYPE'];
         }
+        // Apache may hand the Authorization header over only after a rewrite (see public/.htaccess).
+        if (!isset($headers['authorization']) && isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            $headers['authorization'] = (string) $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        }
 
         $path = parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
 
@@ -40,6 +46,7 @@ final readonly class Request
             $_GET,
             $_POST,
             $headers,
+            (string) file_get_contents('php://input'),
         );
     }
 

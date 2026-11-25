@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Auth\Auth;
+use App\Auth\Credentials;
 use App\Auth\Guard;
 use App\Core\Request;
 use App\Core\Response;
@@ -20,11 +21,9 @@ final readonly class AuthController
     private const string BAD_CREDENTIALS = 'Incorrect email or password.';
     private const string EMAIL_TAKEN = 'That email is already registered.';
 
-    /** Hash of a random, discarded password at the default cost; nothing verifies against it. */
-    private const string DUMMY_HASH = '$2y$12$l9Kk5j4X4yaISkM/WV9Kje9reeGWiKkei0j744KIHLIi64wNKeQrS';
-
     public function __construct(
         private UserRepository $users,
+        private Credentials $credentials,
         private Auth $auth,
         private Guard $guard,
         private View $view,
@@ -44,14 +43,9 @@ final readonly class AuthController
             return $redirect;
         }
 
-        $email = self::normaliseEmail($request->input('email'));
-        $password = self::string($request->input('password'));
-
-        $user = $email === '' ? null : $this->users->findByEmail($email);
-        // Verify against a dummy hash for unknown emails so response time doesn't reveal which emails exist.
-        $valid = password_verify($password, $user->passwordHash ?? self::DUMMY_HASH);
-        if ($user === null || !$valid) {
-            return $this->loginForm(['email' => $email], self::BAD_CREDENTIALS, 422);
+        $user = $this->credentials->check($request->input('email'), $request->input('password'));
+        if ($user === null) {
+            return $this->loginForm(['email' => Credentials::normaliseEmail($request->input('email'))], self::BAD_CREDENTIALS, 422);
         }
 
         $this->auth->login($user);
@@ -86,7 +80,7 @@ final readonly class AuthController
         }
 
         $name = trim(self::string($request->input('name')));
-        $email = self::normaliseEmail($request->input('email'));
+        $email = Credentials::normaliseEmail($request->input('email'));
         $password = self::string($request->input('password'));
         $old = ['name' => $name, 'email' => $email];
 
@@ -147,11 +141,6 @@ final readonly class AuthController
     private function loginForm(array $old = [], ?string $error = null, int $status = 200): Response
     {
         return $this->view->response('auth/login', ['title' => 'Sign in', 'old' => $old, 'error' => $error], $status);
-    }
-
-    private static function normaliseEmail(mixed $email): string
-    {
-        return strtolower(trim(self::string($email)));
     }
 
     /** Form fields arrive as strings, but a crafted request can send arrays (name[]=x). */

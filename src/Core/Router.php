@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Core;
 
+use Closure;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -18,7 +19,11 @@ final class Router
     /** @var list<array{method: string, path: string, pattern: string, class: class-string, action: string}> */
     private array $routes = [];
 
-    public function __construct(private readonly Container $container)
+    /**
+     * @param (Closure(Request, list<string>): ?Response)|null $noMatch builds the response when no route
+     *        matches (the list holds the methods the path does allow, empty for a 404); null keeps the plain-text default
+     */
+    public function __construct(private readonly Container $container, private readonly ?Closure $noMatch = null)
     {
     }
 
@@ -82,10 +87,15 @@ final class Router
             return $controller->{$route['action']}(...$args);
         }
 
+        $allowed = array_values(array_unique($allowed));
+        if ($this->noMatch !== null && ($response = ($this->noMatch)($request, $allowed)) !== null) {
+            return $response;
+        }
+
         if ($allowed !== []) {
             return new Response('Method Not Allowed', 405, [
                 'Content-Type' => 'text/plain; charset=utf-8',
-                'Allow' => implode(', ', array_unique($allowed)),
+                'Allow' => implode(', ', $allowed),
             ]);
         }
 

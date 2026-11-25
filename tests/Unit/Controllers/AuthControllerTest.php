@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Controllers;
 
 use App\Auth\Auth;
+use App\Auth\Credentials;
 use App\Auth\Csrf;
 use App\Auth\Guard;
 use App\Controllers\AuthController;
@@ -40,7 +41,7 @@ final class AuthControllerTest extends TestCase
         $this->auth = new Auth($this->session, new Csrf($this->session));
         $this->users = $this->createStub(UserRepository::class);
         $view = new View(dirname(__DIR__, 3) . '/templates');
-        $this->controller = new AuthController($this->users, $this->auth, new Guard($this->auth, $view), $view);
+        $this->controller = new AuthController($this->users, new Credentials($this->users), $this->auth, new Guard($this->auth, $view), $view);
     }
 
     public function test_the_demo_user_signs_in_with_the_right_password(): void

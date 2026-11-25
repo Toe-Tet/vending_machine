@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Auth\Auth;
 use App\Auth\Csrf;
+use App\Auth\JwtTokens;
 use App\Core\Config;
 use App\Core\Container;
 use App\Core\Database;
@@ -40,6 +41,7 @@ $container->set(View::class, fn (Container $c) => new View(__DIR__ . '/templates
     'csrfToken' => $c->get(Csrf::class)->token(),
     'flash' => $c->get(Flash::class)->pull(),
 ]));
+$container->set(JwtTokens::class, fn (Container $c) => new JwtTokens($c->get(Config::class)->jwtSecret));
 $container->bind(ProductRepository::class, PdoProductRepository::class);
 $container->bind(UserRepository::class, PdoUserRepository::class);
 $container->bind(PurchaseService::class, PdoPurchaseService::class);

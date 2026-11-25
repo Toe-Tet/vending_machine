@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Api\Json;
 use App\Auth\Csrf;
 use App\Core\Config;
 use App\Core\ErrorHandler;
@@ -28,6 +29,9 @@ $config = $container->get(Config::class);
 $errors = new ErrorHandler(!$config->isProduction(), $container->get(View::class));
 $errors->register();
 
+$request = null;
+$isApi = static fn (Request $r): bool => $r->path === '/api' || str_starts_with($r->path, '/api/');
+
 try {
     $request = Request::fromGlobals();
 
@@ -38,12 +42,22 @@ try {
     if ($container->get(Csrf::class)->rejects($request)) {
         $response = $container->get(View::class)->response('errors/csrf', ['title' => 'Form expired'], 403);
     } else {
-        $router = new Router($container);
+        // API clients get JSON errors for unknown paths and methods too.
+        $router = new Router($container, static fn (Request $r, array $allowed) => match (true) {
+            !$isApi($r) => null,
+            $allowed === [] => Json::notFound(),
+            default => Json::error(405, 'method_not_allowed', 'Method not allowed.')->withHeader('Allow', implode(', ', $allowed)),
+        });
         $router->discover(dirname(__DIR__) . '/src/Controllers', 'App\\Controllers');
+        $router->discover(dirname(__DIR__) . '/src/Controllers/Api', 'App\\Controllers\\Api');
         $response = $router->dispatch($request);
     }
 } catch (Throwable $e) {
     $response = $errors->render($e);
+    if ($request !== null && $isApi($request)) {
+        // Details are logged by render(); API clients get the envelope, never HTML.
+        $response = Json::error(500, 'server_error', 'Something went wrong.');
+    }
 }
 
 $response->send();

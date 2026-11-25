@@ -27,9 +27,12 @@ final readonly class PurchaseQuantity
         };
     }
 
-    /** The submitted value as a trimmed string ('' for arrays and other junk), for comparing and re-display. */
+    /**
+     * The submitted value as a trimmed string, for comparing and re-display: form strings and JSON
+     * numbers pass through (a whole float like 2.0 becomes "2"); arrays, booleans and null become ''.
+     */
     public static function normalise(mixed $raw): string
     {
-        return is_string($raw) || is_int($raw) ? trim((string) $raw) : '';
+        return is_string($raw) || is_int($raw) || is_float($raw) ? trim((string) $raw) : '';
     }
 }

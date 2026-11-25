@@ -28,6 +28,11 @@ final readonly class Response
         );
     }
 
+    public function withHeader(string $name, string $value): self
+    {
+        return new self($this->body, $this->status, [$name => $value] + $this->headers);
+    }
+
     public function send(): void
     {
         http_response_code($this->status);
