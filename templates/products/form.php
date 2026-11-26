@@ -18,7 +18,7 @@ $error = static fn (string $field): string => '<small id="' . $field . '-error" 
     . e($errors[$field] ?? '') . '</small>';
 ?>
 <?php $cancelUrl = $product === null ? '/products' : '/products/' . e($product->id); ?>
-<p class="back-link"><a href="<?= $cancelUrl ?>">← Back to <?= $product === null ? 'Products' : e($product->name) ?></a></p>
+<p class="back-link"><a href="/products">← Back to Products</a></p>
 
 <article class="product-card">
     <header><h1><?= $product === null ? 'New Product' : 'Edit ' . e($product->name) ?></h1></header>

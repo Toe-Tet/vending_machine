@@ -25,12 +25,4 @@
             <dd><?= e($product->quantityAvailable) ?></dd>
         </div>
     </dl>
-
-    <footer class="row-actions">
-        <?php require __DIR__ . '/_buy.php'; ?>
-        <?php if (isset($auth) && $auth->isAdmin()): ?>
-            <a href="/products/<?= e($product->id) ?>/edit" role="button" class="secondary">Edit</a>
-            <?php require __DIR__ . '/_delete.php'; ?>
-        <?php endif; ?>
-    </footer>
 </article>

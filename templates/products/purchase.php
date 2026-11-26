@@ -11,7 +11,7 @@
 $soldOut = $product->isSoldOut();
 $quantity = $old['quantity'] ?? '1';
 ?>
-<p class="back-link"><a href="/products/<?= e($product->id) ?>">← Back to <?= e($product->name) ?></a></p>
+<p class="back-link"><a href="/products">← Back to Products</a></p>
 
 <article class="product-card">
     <header>

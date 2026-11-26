@@ -209,18 +209,6 @@ final class ProductsControllerTest extends TestCase
         self::assertStringNotContainsString('href="/products/3/purchase"', $body);
     }
 
-    public function test_the_product_page_links_to_buy_unless_sold_out(): void
-    {
-        $this->products->method('find')->willReturnMap([
-            [2, new Product(2, 'Pepsi', '6.885', 10)],
-            [3, new Product(3, 'Water', '0.500', 0)],
-        ]);
-        $controller = $this->controller();
-
-        self::assertStringContainsString('href="/products/2/purchase"', $controller->show(2)->body);
-        self::assertStringNotContainsString('href="/products/3/purchase"', $controller->show(3)->body);
-    }
-
     public function test_anyone_can_view_a_product(): void
     {
         $this->products->method('find')->willReturnMap([[2, new Product(2, 'Pepsi', '6.885', 10)]]);
@@ -233,15 +221,16 @@ final class ProductsControllerTest extends TestCase
         self::assertStringNotContainsString('/products/2/edit', $response->body);
     }
 
-    public function test_admins_see_edit_and_delete_on_the_product_page(): void
+    public function test_the_product_page_has_no_buy_edit_or_delete_controls(): void
     {
         $this->signInAs(Role::Admin);
         $this->products->method('find')->willReturn(new Product(2, 'Pepsi', '6.885', 10));
 
         $body = $this->controller()->show(2)->body;
 
-        self::assertStringContainsString('href="/products/2/edit"', $body);
-        self::assertStringContainsString('value="DELETE"', $body);
+        self::assertStringNotContainsString('href="/products/2/purchase"', $body);
+        self::assertStringNotContainsString('href="/products/2/edit"', $body);
+        self::assertStringNotContainsString('value="DELETE"', $body);
     }
 
     /** The repository hides Archived Products, so missing and archived look the same here. */
